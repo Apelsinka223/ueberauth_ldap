@@ -190,4 +190,91 @@ defmodule Ueberauth.Strategy.LDAPTest do
     assert info.location == nil
     assert info.description == nil
   end
+
+  test "with `connect/0` returning error callback phase" do
+    Ueberauth.Strategy.LDAP.AdapterMock
+    |> expect(:connect, fn -> {:error, "some error"} end)
+
+    opts = %{
+      uid: "some uid",
+      password: "password",
+    }
+
+    query = URI.encode_query(opts)
+
+    conn =
+      :get
+      |> conn("/auth/ldap/callback?#{query}")
+      |> SpecRouter.call(@router)
+
+    assert conn.resp_body == "ldap callback"
+
+    error = conn.assigns.ueberauth_failure
+    assert %Ueberauth.Failure{
+             errors: [
+               %Ueberauth.Failure.Error{message: "some error", message_key: "exldap"}
+             ],
+             provider: :ldap,
+             strategy: Ueberauth.Strategy.LDAP
+           } = error
+  end
+
+  test "with `verify/3` returning error callback phase" do
+    Ueberauth.Strategy.LDAP.AdapterMock
+    |> expect(:connect, fn -> {:ok, "connection"} end)
+    |> expect(:verify, fn "connection", "some uid", "password" -> {:error, "some error"} end)
+
+    opts = %{
+      uid: "some uid",
+      password: "password",
+    }
+
+    query = URI.encode_query(opts)
+
+    conn =
+      :get
+      |> conn("/auth/ldap/callback?#{query}")
+      |> SpecRouter.call(@router)
+
+    assert conn.resp_body == "ldap callback"
+
+    error = conn.assigns.ueberauth_failure
+    assert %Ueberauth.Failure{
+             errors: [
+               %Ueberauth.Failure.Error{message: "some error", message_key: "exldap"}
+             ],
+             provider: :ldap,
+             strategy: Ueberauth.Strategy.LDAP
+           } = error
+  end
+
+  test "with `get/2` returning error callback phase" do
+    Ueberauth.Strategy.LDAP.AdapterMock
+    |> expect(:connect, fn -> {:ok, "connection"} end)
+    |> expect(:verify, fn "connection", "some uid", "password" -> :ok end)
+    |> expect(:get, fn "connection", "some uid" -> {:error, "some error"} end)
+
+    opts = %{
+      uid: "some uid",
+      password: "password",
+    }
+
+    query = URI.encode_query(opts)
+
+    conn =
+      :get
+      |> conn("/auth/ldap/callback?#{query}")
+      |> SpecRouter.call(@router)
+
+    assert conn.resp_body == "ldap callback"
+
+    error = conn.assigns.ueberauth_failure
+    assert %Ueberauth.Failure{
+             errors: [
+               %Ueberauth.Failure.Error{message: "some error", message_key: "exldap"}
+             ],
+             provider: :ldap,
+             strategy: Ueberauth.Strategy.LDAP
+           } = error
+  end
 end
